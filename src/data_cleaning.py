@@ -46,9 +46,13 @@ def load_singular_data(folder, file_name):
     return features, targets_filtered 
 
 
-def prepare_dataloader(folder, batch_size=32, parallel_processing=False):
+def prepare_dataloader(folder, batch_size=32, parallel_processing=False, skip=None):
+    # skip is a list of ints or None
     filenames = [f.split(".")[0] for f in os.listdir(folder) if f.endswith('.wav')]
     input_data = [(folder, filename) for filename in filenames]
+    if skip:
+        for j in skip:
+            input_data = [i for i in input_data if str(j) not in i[1]]
     if not parallel_processing:
         results = [load_singular_data(*data) for data in tqdm(input_data)]
     else:
