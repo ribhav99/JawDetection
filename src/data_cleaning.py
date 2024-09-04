@@ -20,7 +20,7 @@ encoder = Wav2Vec2Model.from_pretrained("facebook/wav2vec2-base")
 
 #TODO: account for the lag/offset in the audio and mocap data
 # it might be best to clean the data at the source instead of doing it in code here
-def load_singular_data(folder, file_name):
+def load_singular_data(folder, file_name, input_length=2000):
     '''
     # csv and audio file must be in the same folder
     # the filenames must be the same, one ending in .wav, the other in .csv
@@ -33,16 +33,16 @@ def load_singular_data(folder, file_name):
     mask[::6] = False 
     targets_filtered = targets[mask]
     with torch.no_grad():
-        features = encoder(waveform).last_hidden_state.squeeze()  # Shape: [batch_size, sequence_length, hidden_size]
+        features = encoder(waveform).last_hidden_state.squeeze()  # Shape: [sequence_length, hidden_size]
     if targets_filtered.shape[0] > features.shape[0]:
         targets_filtered = targets_filtered[:features.shape[0]]
     elif targets_filtered.shape[0] < features.shape[0]:
         features = features[:targets_filtered.shape[0]]
 
-    # print(f"audio_shape: {waveform.shape}")
-    # print(f"target_shape: {targets_filtered.shape}")
-    # print(f"encoded_shape: {features.shape}")
-
+    # each row in features corresponds to ~20ms of audio
+    # we want to convert features into shape [num_sequences, sequence_length, hidden_size]
+    # where sequence_length duration corresponds to input_length duration
+    # if input length = 2000, then sequence_length = 2000/1000 * 50 = 100
     return features, targets_filtered 
 
 
@@ -67,9 +67,15 @@ def prepare_dataloader(folder, batch_size=32, parallel_processing=False, skip=No
 if __name__ == "__main__":
     from model import Wav2Vec2GRUModel
     model = Wav2Vec2GRUModel()
-    dataloader = prepare_dataloader('/Users/ribhavkapur/Desktop/clean_sirt', batch_size=32)
-    for inputs, targets in dataloader:
-        output = model(inputs, encode_input=False)
-        print(output)
-        print(f"output_shape: {output.shape}")
-        break
+    # Windows: C:/Users/Ribhav/Downloads/clean_sirt
+    # Mac: /Users/ribhavkapur/Desktop/clean_sirt
+    # dataloader = prepare_dataloader('C:/Users/Ribhav/Downloads/clean_sirt', batch_size=32)
+    # for inputs, targets in dataloader:
+    #     output = model(inputs, encode_input=False)
+    #     print(output)
+    #     print(f"output_shape: {output.shape}")
+    #     print(inputs.shape)
+    #     break
+    features, targets = load_singular_data('C:/Users/Ribhav/Downloads/clean_sirt', 'KYLE-D1-003')
+    print(features.shape)
+    print(targets.shape)

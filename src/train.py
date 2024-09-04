@@ -24,6 +24,7 @@ def train_model(model, data_loader, criterion, num_epochs=100, use_wandb=False, 
         wandb.init(project="jaw_model")
         wandb.watch(model, criterion, log="all", log_freq=10)
 
+    prev_model_name = None
     for epoch in trange(num_epochs):
         if early_stop:
             print("Early stopping triggered")
@@ -52,16 +53,22 @@ def train_model(model, data_loader, criterion, num_epochs=100, use_wandb=False, 
         if use_wandb:
             wandb.log({"epoch": epoch + 1, "loss": running_loss})
         
-        print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {running_loss:.4f}")
+        # print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {running_loss:.4f}")
         
         # Early stopping check
         if running_loss < best_loss:
             best_loss = running_loss
             epochs_no_improve = 0
             if use_wandb:
+                if prev_model_name is not None:
+                    os.remove(prev_model_name)
                 torch.save(model.state_dict(), os.path.join(wandb.run.dir, f"model_epoch_{epoch+1}.pt"))
+                prev_model_name = os.path.join(wandb.run.dir, f"model_epoch_{epoch+1}.pt")
             else:
+                if prev_model_name is not None:
+                    os.remove(prev_model_name)
                 torch.save(model.state_dict(), f"../models/model_epoch_{epoch+1}.pt")
+                prev_model_name = f"../models/model_epoch_{epoch+1}.pt"
         else:
             epochs_no_improve += 1
             if epochs_no_improve >= patience:
