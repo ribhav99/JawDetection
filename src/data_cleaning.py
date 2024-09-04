@@ -83,9 +83,10 @@ if __name__ == "__main__":
     dataloader = prepare_dataloader('/Users/ribhavkapur/Desktop/clean_sirt', batch_size=32)
     for inputs, targets in dataloader:
         output = model(inputs, encode_input=False)
-        print(output)
         print(f"output_shape: {output.shape}")
-        print(inputs.shape)
+        print(f"input_shape: {inputs.shape}")
+        print(f"target_shape: {targets.shape}")
+
         break
     # features, targets = load_singular_data('/Users/ribhavkapur/Desktop/clean_sirt', 'KYLE-D1-003')
     # print(features.shape)
