@@ -24,6 +24,7 @@ def load_singular_data(folder, file_name, input_length=2000):
     '''
     # csv and audio file must be in the same folder
     # the filenames must be the same, one ending in .wav, the other in .csv
+    # input_length is the desired duration in milliseconds
     '''
     df = pd.read_csv(os.path.join(folder, file_name + '.csv'))
     waveform, sample_rate = torchaudio.load(os.path.join(folder, file_name + '.wav'))
@@ -43,6 +44,16 @@ def load_singular_data(folder, file_name, input_length=2000):
     # we want to convert features into shape [num_sequences, sequence_length, hidden_size]
     # where sequence_length duration corresponds to input_length duration
     # if input length = 2000, then sequence_length = 2000/1000 * 50 = 100
+    # so shape of new features = [features.shape[0]//100 + 1, 100, features.shape[1]]
+    # Calculate the sequence length based on the input_length (2000ms corresponds to 100 timesteps)
+
+    sequence_length = (input_length // 1000) * 50  # 50 frames per second
+    num_sequences = features.shape[0] // sequence_length + 1
+    padding_length = sequence_length * num_sequences - features.shape[0]
+    features = torch.nn.functional.pad(features, (0, 0, 0, padding_length))
+    features = features.reshape(num_sequences, sequence_length, features.shape[1])
+    targets_filtered = torch.nn.functional.pad(targets_filtered, (0, padding_length))
+    targets_filtered = targets_filtered.reshape(num_sequences, sequence_length)
     return features, targets_filtered 
 
 
@@ -69,13 +80,13 @@ if __name__ == "__main__":
     model = Wav2Vec2GRUModel()
     # Windows: C:/Users/Ribhav/Downloads/clean_sirt
     # Mac: /Users/ribhavkapur/Desktop/clean_sirt
-    # dataloader = prepare_dataloader('C:/Users/Ribhav/Downloads/clean_sirt', batch_size=32)
-    # for inputs, targets in dataloader:
-    #     output = model(inputs, encode_input=False)
-    #     print(output)
-    #     print(f"output_shape: {output.shape}")
-    #     print(inputs.shape)
-    #     break
-    features, targets = load_singular_data('C:/Users/Ribhav/Downloads/clean_sirt', 'KYLE-D1-003')
-    print(features.shape)
-    print(targets.shape)
+    dataloader = prepare_dataloader('/Users/ribhavkapur/Desktop/clean_sirt', batch_size=32)
+    for inputs, targets in dataloader:
+        output = model(inputs, encode_input=False)
+        print(output)
+        print(f"output_shape: {output.shape}")
+        print(inputs.shape)
+        break
+    # features, targets = load_singular_data('/Users/ribhavkapur/Desktop/clean_sirt', 'KYLE-D1-003')
+    # print(features.shape)
+    # print(targets.shape)
