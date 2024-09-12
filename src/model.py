@@ -20,7 +20,7 @@ class Wav2Vec2GRUModel(nn.Module):
     def forward(self, input_values, encode_input=False):
         if encode_input:
             with torch.no_grad():  # Freeze the Wav2Vec2 model
-                features = self.wav2vec2(input_values).last_hidden_state  # Shape: [batch_size, sequence_length, hidden_size]
+                features = self.wav2vec2(input_values).last_hidden_state.squeeze()  # Shape: [batch_size, sequence_length, hidden_size]
         else:
             features = input_values
         gru_output, _ = self.gru(features)  # Shape: [batch_size, sequence_length, hidden_size * 2]
