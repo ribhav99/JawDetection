@@ -13,6 +13,9 @@ def train_model(model, data_loader, criterion, num_epochs=100, use_wandb=False, 
     else:
         device = torch.device("cpu")
     
+    current_dir = os.path.dirname(os.path.realpath(__file__))
+    if not os.path.exists(f"{current_dir}/../models"):
+        os.makedirs(f"{current_dir}/../models")
     optimizer = optim.Adam(model.parameters(), lr=1e-4)
     model.to(device)
     
@@ -59,19 +62,21 @@ def train_model(model, data_loader, criterion, num_epochs=100, use_wandb=False, 
         if running_loss < best_loss:
             best_loss = running_loss
             epochs_no_improve = 0
-            if use_wandb:
-                if prev_model_name is not None:
-                    os.remove(prev_model_name)
-                torch.save(model.state_dict(), os.path.join(wandb.run.dir, f"model_epoch_{epoch+1}.pt"))
-                prev_model_name = os.path.join(wandb.run.dir, f"model_epoch_{epoch+1}.pt")
-            else:
-                if prev_model_name is not None:
-                    os.remove(prev_model_name)
-                torch.save(model.state_dict(), f"../models/model_epoch_{epoch+1}.pt")
-                prev_model_name = f"../models/model_epoch_{epoch+1}.pt"
+            # if use_wandb:
+            #     if prev_model_name is not None:
+            #         os.remove(prev_model_name)
+            #     torch.save(model.state_dict(), os.path.join(wandb.run.dir, f"model_epoch_{epoch+1}.pt"))
+            #     prev_model_name = os.path.join(wandb.run.dir, f"model_epoch_{epoch+1}.pt")
+            # else:
+            if prev_model_name is not None:
+                os.remove(prev_model_name)
+            prev_model_name = os.path.join(current_dir, "..", "models", f"model_epoch_{epoch+1}.pt")
+            torch.save(model.state_dict(), os.path.abspath(prev_model_name))
+            break
         else:
             epochs_no_improve += 1
             if epochs_no_improve >= patience:
                 early_stop = True
-    
-    wandb.finish()
+    if use_wandb:
+        wandb.save(prev_model_name, policy="now")
+        wandb.finish()
