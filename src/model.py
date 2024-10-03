@@ -35,13 +35,22 @@ class Wav2Vec2GRUModel(nn.Module):
 
 if __name__ == '__main__':
     import torchaudio
+    import pandas as pd
     audio_file = "/Users/ribhavkapur/Desktop/clean_sirt/KYLE-D1-001.wav"
     model = Wav2Vec2GRUModel()
     waveform, sample_rate = torchaudio.load(audio_file)
     waveform = torchaudio.functional.resample(waveform, sample_rate, 16000)
     print(f"audio shape: {waveform.shape}")
-    output = model(waveform, encode_input=True)
+    # Load the corresponding CSV file
+    csv_file = "/Users/ribhavkapur/Desktop/clean_sirt/KYLE-D1-001.csv"
+    df = pd.read_csv(csv_file)
+    targets = torch.tensor(df["Value"].to_list())
+    mask = torch.ones(targets.size(0), dtype=torch.bool)
+    mask[::6] = False
+    targets_filtered = targets[mask]
+    print(f"targets shape: {targets_filtered.shape}")
 
+    output = model(waveform, encode_input=True)
     print(f"output_shape: {output.shape}")  # Output will be a tensor with shape [8, 1], predicting controller activation for each sample
 
 
