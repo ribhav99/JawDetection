@@ -7,9 +7,11 @@ from data_cleaning import audio_cuts
 import matplotlib.pyplot as plt
 
 model_path = os.path.join(os.path.dirname(__file__), "../models/model_epoch_736.pt")
-file_name = "KYLE-D1-012"
-test_csv = f"/Users/ribhavkapur/Desktop/clean_sirt/{file_name}.csv"
-test_wav = f"/Users/ribhavkapur/Desktop/clean_sirt/{file_name}.wav"
+file_name = "MichaelRosen_HotFood_clean"
+test_csv = f'/Users/ribhavkapur/Desktop/everything/College/CS/JawDectection/audio_clips/{file_name}.csv'
+test_wav = f'/Users/ribhavkapur/Desktop/everything/College/CS/JawDectection/audio_clips/{file_name}.wav'
+ground_truth_multiplier = 10 # This is because the values for jaw from jali animation are between 0 and 1 whereas the values from SIRT are between 0 and 10
+
 if torch.cuda.is_available():
     device = torch.device("cuda")
 elif torch.backends.mps.is_available():
@@ -22,15 +24,18 @@ model.load_state_dict(torch.load(model_path, map_location=device))
 model.eval()
 
 df = pd.read_csv(test_csv)
+df["Value"] = df["Value"] * ground_truth_multiplier
 waveform, sample_rate = torchaudio.load(test_wav)
 waveform = torchaudio.functional.resample(waveform, sample_rate, 16000)
 targets = torch.tensor(df["Value"].to_list())
 
 # Slice targets and audio to align them perfectly
-waveform = waveform[:, int(audio_cuts[file_name] * 16000):]
-targets = targets[int(audio_cuts[file_name] * 60):]
-expected_length_from_audio = waveform.shape[1] / 16000
-expected_length_from_targets = targets.shape[0] / 60
+if file_name in audio_cuts:
+    waveform = waveform[:, int(audio_cuts[file_name] * 16000):]
+    targets = targets[int(audio_cuts[file_name] * 60):]
+    expected_length_from_audio = waveform.shape[1] / 16000
+    expected_length_from_targets = targets.shape[0] / 60
+
 if expected_length_from_audio > expected_length_from_targets:
     waveform = waveform[:, :int(expected_length_from_targets * 16000)]
 elif expected_length_from_audio < expected_length_from_targets:
@@ -59,7 +64,10 @@ print(f"Mean absolute loss: {abs_loss.mean().item()}")
 print(f"Max absolute loss: {abs_loss.max().item()}")
 
 # Create new output by substituting the targets with the predicted values
-starting = targets[:int(audio_cuts[file_name] * 60)]
+if file_name in audio_cuts:
+    starting = targets[:int(audio_cuts[file_name] * 60)]
+else:
+    starting = [] # HERE
 middle = output
 indices = torch.arange(len(middle))
 duplicate_indices = (indices + 1) % 5 == 0
@@ -71,12 +79,28 @@ new_output = torch.cat((starting, middle), dim=0)
 new_output_path = os.path.join(os.path.dirname(__file__), f"../new_outputs/{file_name}.pt")
 torch.save(new_output, new_output_path)
 
-# Plot the output and targets
-plt.figure(figsize=(12, 6))
-plt.plot(output, label='Predicted')
-plt.plot(targets_filtered, label='Targets')
-plt.xlabel('Time')
-plt.ylabel('Value')
-plt.title('Output vs Targets')
-plt.legend()
+# Plot the output and targets with horizontal scroll
+from matplotlib.widgets import Slider
+
+fig, ax = plt.subplots(figsize=(12, 6))
+plt.subplots_adjust(bottom=0.25)
+
+# Initial plot
+line1, = ax.plot(output, label='Predicted')
+line2, = ax.plot(targets_filtered, label='Targets')
+ax.set_xlabel('Time')
+ax.set_ylabel('Value')
+ax.set_title('Output vs Targets')
+ax.legend()
+
+# Slider for horizontal scrolling
+ax_slider = plt.axes([0.2, 0.1, 0.65, 0.03], facecolor='lightgoldenrodyellow')
+slider = Slider(ax_slider, 'Scroll', 0, len(output) - 100, valinit=0, valstep=1)
+
+def update(val):
+    pos = slider.val
+    ax.set_xlim(pos, pos + 100)
+    fig.canvas.draw_idle()
+
+slider.on_changed(update)
 plt.show()
